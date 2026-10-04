@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#6548e8">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Jeu de dictée">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="images/logo.jpg">
+  <title>Jeu de dictée - Orthographe primaire</title>
+  <link rel="icon" type="image/jpeg" href="images/logo.jpg">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="offline-banner" id="offlineBanner" hidden>📴 Mode hors connexion</div>
+  <main class="container">
+    <header class="header">
+      <div class="logo">✏️</div>
+      <h1>Jeu de dictée</h1>
+      <p>Écoute, écris et progresse en orthographe !</p>
+    </header>
+
+    <nav class="tabs" aria-label="Navigation">
+      <button class="tab active" data-section="ajouter">➕ <span>Mes mots</span></button>
+      <button class="tab" data-section="jeu">🎧 <span>Dictée</span></button>
+      <button class="tab" data-section="liste">📚 <span>Liste</span></button>
+    </nav>
+
+    <section id="ajouter" class="section active">
+      <div class="section-header">
+        <div class="section-icon">📝</div>
+        <div>
+          <h2>Ajouter un mot</h2>
+          <p>Ajoute les mots que tu veux apprendre.</p>
+        </div>
+      </div>
+
+      <form id="wordForm" class="add-box">
+        <label for="wordInput">Nouveau mot</label>
+        <input id="wordInput" type="text" placeholder="Exemple : extraordinaire"
+               autocomplete="off" autocapitalize="sentences" maxlength="50">
+        <button type="submit" class="btn primary full">➕ Ajouter le mot</button>
+        <div class="message" id="addMessage" role="status"></div>
+      </form>
+
+      <div class="tip">
+        💡 <strong>Astuce :</strong> commence par le mode avec mot apparent,
+        puis passe au mode sans aide.
+      </div>
+    </section>
+
+    <section id="jeu" class="section">
+      <div id="dictationChoice">
+        <div class="section-header centered">
+          <div class="section-icon">🎧</div>
+          <h2>Choisis ton mode de dictée</h2>
+          <p>Apprends d'abord, puis teste ta mémoire.</p>
+        </div>
+
+        <div class="mode-grid">
+          <button type="button" class="mode-card visible" id="visibleMode">
+            <div class="mode-icon">👀</div>
+            <div class="mode-content">
+              <h3>Avec mot apparent</h3>
+              <p>Le mot reste visible pendant l'écoute. Idéal pour mémoriser.</p>
+              <span>⭐ Niveau apprentissage</span>
+            </div>
+            <b class="arrow">→</b>
+          </button>
+
+          <button type="button" class="mode-card hidden-mode" id="hiddenMode">
+            <div class="mode-icon">🧠</div>
+            <div class="mode-content">
+              <h3>Sans mot apparent</h3>
+              <p>Écoute seulement le mot et écris-le de mémoire.</p>
+              <span>🏆 Niveau défi</span>
+            </div>
+            <b class="arrow">→</b>
+          </button>
+        </div>
+      </div>
+
+      <div id="game" class="game hidden">
+        <div class="game-top">
+          <button type="button" class="back-button" id="backToModes">← Changer de mode</button>
+          <div class="score">⭐ <span id="score">0</span></div>
+        </div>
+
+        <div class="game-mode-title" id="gameModeTitle"></div>
+
+        <div class="progress-info">
+          <span id="questionNumber">Mot 1</span>
+          <span id="totalWords">/ 0</span>
+        </div>
+        <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
+
+        <div id="gameContent"></div>
+      </div>
+    </section>
+
+    <section id="liste" class="section">
+      <div class="section-header">
+        <div class="section-icon">📚</div>
+        <div>
+          <h2>Mes mots</h2>
+          <p><span id="wordCount">0</span> mot(s) enregistré(s)</p>
+        </div>
+      </div>
+      <div class="word-list" id="wordList"></div>
+    </section>
+  </main>
+
+  <script src="script.js" defer></script>
+</body>
+</html>

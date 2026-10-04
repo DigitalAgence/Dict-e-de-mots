@@ -1,0 +1,24 @@
+{
+  "name": "Jeu de dictée – Orthographe",
+  "short_name": "Jeu de dictée",
+  "description": "Jeu de dictée et d'orthographe sur téléphone, tablette et ordinateur.",
+  "lang": "fr-FR",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f2efff",
+  "theme_color": "#6548e8",
+  "icons": [
+    {
+      "src": "images/logo.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg"
+    },
+    {
+      "src": "images/logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
+  ]
+}
