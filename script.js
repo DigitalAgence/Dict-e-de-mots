@@ -14,20 +14,14 @@
   function loadWords() {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-      return Array.isArray(saved)
-        ? saved.filter(w => typeof w === "string" && w.trim()).slice(0, 500)
-        : [];
+      return Array.isArray(saved) ? saved.filter(w => typeof w === "string") : [];
     } catch {
       return [];
     }
   }
 
   function saveWords() {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(words));
-    } catch {
-      showMessage("⚠️ Impossible d'enregistrer sur cet appareil.", "#c62828");
-    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(words));
   }
 
   function escapeHTML(value) {
@@ -75,34 +69,7 @@
     saveWords();
     input.value = "";
     showMessage("✅ Mot ajouté !", "#168548");
-  
-  // État de connexion : le jeu reste utilisable hors connexion après installation.
-  function updateOnlineState() {
-    const banner = $("offlineBanner");
-    if (banner) banner.hidden = navigator.onLine;
-  }
-  window.addEventListener("online", updateOnlineState);
-  window.addEventListener("offline", updateOnlineState);
-  updateOnlineState();
-
-  // Évite qu'une voix reste bloquée en arrière-plan sur iOS/Safari.
-  document.addEventListener("visibilitychange", () => {
-    if (document.hidden && "speechSynthesis" in window) speechSynthesis.cancel();
-  });
-
-  // Empêche le double appui accidentel sur les boutons d'action.
-  document.addEventListener("dblclick", (event) => {
-    if (event.target.closest("button")) event.preventDefault();
-  });
-
-  // Installation PWA.
-  if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker.register("service-worker.js").catch(() => {});
-    });
-  }
-
-  displayWords();
+    displayWords();
   }
 
   function showMessage(text, color) {
@@ -148,34 +115,7 @@
     if (!window.confirm("Supprimer ce mot ?")) return;
     words.splice(index, 1);
     saveWords();
-  
-  // État de connexion : le jeu reste utilisable hors connexion après installation.
-  function updateOnlineState() {
-    const banner = $("offlineBanner");
-    if (banner) banner.hidden = navigator.onLine;
-  }
-  window.addEventListener("online", updateOnlineState);
-  window.addEventListener("offline", updateOnlineState);
-  updateOnlineState();
-
-  // Évite qu'une voix reste bloquée en arrière-plan sur iOS/Safari.
-  document.addEventListener("visibilitychange", () => {
-    if (document.hidden && "speechSynthesis" in window) speechSynthesis.cancel();
-  });
-
-  // Empêche le double appui accidentel sur les boutons d'action.
-  document.addEventListener("dblclick", (event) => {
-    if (event.target.closest("button")) event.preventDefault();
-  });
-
-  // Installation PWA.
-  if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker.register("service-worker.js").catch(() => {});
-    });
-  }
-
-  displayWords();
+    displayWords();
   }
 
   // Modes
@@ -198,7 +138,7 @@
   }
 
   $("backToModes").addEventListener("click", () => {
-    speechSynthesis.cancel();
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
     $("game").classList.add("hidden");
     $("dictationChoice").classList.remove("hidden");
   });
@@ -216,46 +156,70 @@
     showWord();
   }
 
-  // Important sur mobile :
-  // la synthèse vocale est lancée uniquement après une action utilisateur.
-  let speechVoice = null;
+  // =========================
+  // Lecture vocale robuste mobile
+  // =========================
+  let speechVoices = [];
+  let speechTimer = null;
 
-  function loadFrenchVoice() {
-    if (!("speechSynthesis" in window)) return;
-    const voices = speechSynthesis.getVoices();
-    speechVoice =
-      voices.find(v => /^fr-FR$/i.test(v.lang)) ||
-      voices.find(v => /^fr/i.test(v.lang)) ||
-      null;
+  function refreshVoices() {
+    if (!("speechSynthesis" in window)) return [];
+    speechVoices = window.speechSynthesis.getVoices() || [];
+    return speechVoices;
+  }
+
+  function getFrenchVoice() {
+    const voices = refreshVoices();
+    return voices.find(v => /^fr(-|_|$)/i.test(v.lang) && /france|français|french|google|premium|enhanced|siri/i.test(v.name))
+      || voices.find(v => /^fr(-|_|$)/i.test(v.lang))
+      || null;
   }
 
   if ("speechSynthesis" in window) {
-    loadFrenchVoice();
-    speechSynthesis.addEventListener?.("voiceschanged", loadFrenchVoice);
+    refreshVoices();
+    window.speechSynthesis.addEventListener?.("voiceschanged", refreshVoices);
   }
 
   function speakWord(word) {
     if (!("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) {
-      showFeedback("⚠️ La lecture vocale n'est pas disponible sur cet appareil.", "wrong");
+      showSpeechStatus("❌ La lecture vocale n’est pas prise en charge par ce navigateur.");
       return;
     }
 
-    // Compatible iOS/Android : annule la file précédente avant chaque lecture.
-    speechSynthesis.cancel();
-
+    window.clearTimeout(speechTimer);
+    const synth = window.speechSynthesis;
+    const voice = getFrenchVoice();
     const utterance = new SpeechSynthesisUtterance(String(word));
-    utterance.lang = "fr-FR";
+
+    utterance.lang = voice?.lang || "fr-FR";
+    if (voice) utterance.voice = voice;
     utterance.rate = 0.72;
     utterance.pitch = 1;
     utterance.volume = 1;
-    if (speechVoice) utterance.voice = speechVoice;
 
-    utterance.onerror = () => {
-      showFeedback("⚠️ La lecture vocale a été bloquée. Appuie à nouveau sur 🔊.", "wrong");
+    utterance.onstart = () => showSpeechStatus("🔊 Lecture en cours…");
+    utterance.onend = () => showSpeechStatus("✅ Appuie à nouveau pour réécouter.");
+    utterance.onerror = (event) => {
+      if (event.error === "canceled" || event.error === "interrupted") return;
+      showSpeechStatus("⚠️ La voix n’a pas démarré. Appuie encore une fois sur « Écouter ».");
     };
 
-    // Petit délai utile sur certains Safari/iOS après cancel().
-    window.setTimeout(() => speechSynthesis.speak(utterance), 40);
+    synth.cancel();
+    // Safari iOS et certains WebViews Android sont plus fiables avec un petit
+    // délai entre cancel() et speak(). La lecture reste déclenchée par le tap.
+    speechTimer = window.setTimeout(() => {
+      try {
+        synth.resume();
+        synth.speak(utterance);
+      } catch (_) {
+        showSpeechStatus("⚠️ Impossible de lancer la lecture vocale sur cet appareil.");
+      }
+    }, 80);
+  }
+
+  function showSpeechStatus(message) {
+    const status = document.getElementById("speechStatus");
+    if (status) status.textContent = message;
   }
 
   function showWord() {
@@ -279,9 +243,12 @@
            <p class="mode-help">🧠 Le mot n'est pas affiché avant ta réponse.</p>`
       }
 
-      <button type="button" class="btn listen-button" id="listenButton">
+      <button type="button" class="btn listen-button" id="listenButton" aria-label="Écouter le mot">
         🔊 Écouter le mot
       </button>
+      <div class="speech-status" id="speechStatus" aria-live="polite">
+        Appuie sur le bouton pour écouter.
+      </div>
 
       <div class="answer-container">
         <input
@@ -422,33 +389,6 @@
     });
     document.querySelectorAll(".section").forEach(s => {
       s.classList.toggle("active", s.id === id);
-    });
-  }
-
-
-  // État de connexion : le jeu reste utilisable hors connexion après installation.
-  function updateOnlineState() {
-    const banner = $("offlineBanner");
-    if (banner) banner.hidden = navigator.onLine;
-  }
-  window.addEventListener("online", updateOnlineState);
-  window.addEventListener("offline", updateOnlineState);
-  updateOnlineState();
-
-  // Évite qu'une voix reste bloquée en arrière-plan sur iOS/Safari.
-  document.addEventListener("visibilitychange", () => {
-    if (document.hidden && "speechSynthesis" in window) speechSynthesis.cancel();
-  });
-
-  // Empêche le double appui accidentel sur les boutons d'action.
-  document.addEventListener("dblclick", (event) => {
-    if (event.target.closest("button")) event.preventDefault();
-  });
-
-  // Installation PWA.
-  if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker.register("service-worker.js").catch(() => {});
     });
   }
 
